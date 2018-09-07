@@ -1,0 +1,48 @@
+x# Use this script for getting the cross secondary spectrum
+import numpy as np
+
+
+def get_cross(dyn1, dyn2, remove_p2p=False, low=0, high=1):
+    """Computes and returns the cross secondary spectrum"""
+    if remove_p2p:
+        mask = dyn1 + dyn2
+        mask = mask.mean(axis=0, keepdims=True)
+        mask = normalize(mask, high, low)
+        spec1 = dyn1/mask
+        spec2 = dyn2/mask
+        spec1 = replaceINF(spec1)
+        spec2 = replaceINF(spec2)
+    else:
+        spec1 = dyn1.copy()
+        spec2 = dyn2.copy()
+    spec1 = np.fft.fft2(spec1)
+    spec2 = np.fft.fft2(spec2)
+    spec1 = np.fft.fftshift(spec1)
+    spec2 = np.fft.fftshift(spec2)
+    cross = spec1 * np.conj(spec2)
+    return cross
+
+
+def get_axis_lims(xlen, ylen, tmin, tmax, fmin, fmax):
+    """Returns the x and y limits after computing the Fourier Transform"""
+    xlim = (xlen/(tmax-tmin))/2
+    ylim = (ylen/(fmax-fmin))/2
+    return xlim, ylim
+    
+
+def remove_leakages(cross, xmin, xmax, ymin, ymax):
+    """Removes the indices between xmin and xmas and ymin and ymax"""
+    cross[:,ymin:ymax] = np.nan
+    cross[xmin:xmax,:] = np.nan
+    return cross
+
+def replaceINF(arr):
+    arr[arr == np.inf] = 0
+    arr[arr == -np.inf] = 0
+    return arr
+
+def normalize(arr, high=1.0, low=0.0):
+    mins = np.min(arr)
+    maxs = np.max(arr)
+    rng = maxs - mins
+    return high - (((high - low) * (maxs - arr)) / rng)

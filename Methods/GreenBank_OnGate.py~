@@ -1,0 +1,73 @@
+# This script is used to produce on gates for the GreenBank Data
+# The data has frequency range 316.25MHz ~ 340.25 MHz
+# Time Range in MJD: 57816.16821702889 - 57816.27061081544
+# Data recorded on March 4, 2017 from 4:00pm to 6:30pm
+# Note: A number of times are missing in the data.
+import numpy as np
+
+
+def __init__():
+    return
+
+class OnGate:
+    """An On Gate of the GreenBank Data
+    === Attributes ===
+    @param tuple: the left and right boundaries of the pulse phase for this gate
+    @param nparray dyn_raw: The dynamic spectrum of this gate, with nans included
+    @param ndarray time: The array of times for this gate
+    @param ndarray freq: The array of frequencies for this ndarray
+    """
+
+    off = (400, 600)  # The range of pulse phases used to make the off gate
+
+
+    def __init__(self, time, frequency, data, left, right):
+        """
+        Creates a new On Gate from the given data and the left and right boundaries of the data
+        @param nparray BTNode data: Three dimensional numpy array of pulse profile
+        @param int left: The leftmost pulse phase of this on gate
+        @param int right: The rightmost pulse phase of this on gate
+        @param ndarray time: The array of times in seconds starting from zero
+        @param ndarray frequency: The array of frequencies, in MHz
+        @rtype: None
+        """
+        self.left = left
+        self.right = right
+        self.time = time
+        self.freq = frequency
+        self.dyn_raw = self.make_gate(data, left, right)
+
+    
+    def make_gate(self, data, left, right):
+        """
+        Creates the raw dynamic spectrum for self
+        @param nparray data: The three dimensional pulse profile of this data
+        @param int left: The leftmost pulse phase of this gate
+        @param int right: The rightmost pulse phase of this gate
+        @rtype ndarray: A two dimensional dynamic spectrum of this gate. First dimension
+        is time, second dimension is frequencu
+        """
+        off_gate = np.nanmean(data[:,:,self.off[0]:self.off[1]], axis=-1)
+        on1_gate = np.nanmean(data[:,:,left:right], axis=-1)
+        return on1_gate/off_gate - 1
+
+    def get_plugged_dyn(self, method, time=None, remove_gains=True):
+        """
+        Returns the dynamic spectrum with nans removed
+        @param str method: The method for replaceing the nan values
+        @param tuple time: The indices for slicing the time, default is the entire array
+        """
+        nan_indices = np.isnan(self.dyn_raw)
+        if method=="zero":
+            replace_value = 0
+        elif method=="avg":
+            replace_value = np.nanmean(self.dyn_raw)
+        cp = self.dyn_raw.copy()
+        cp[nan_indices] = replace_value
+        if remove_gains:
+            cp = np.divide(cp, cp.mean(axis=1, keepdims=True), where=cp!=replace_value)
+        if time==None:
+            return cp
+        else:
+            return cp[time[0]:time[1],:]
+    
